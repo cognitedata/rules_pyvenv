@@ -1,0 +1,22 @@
+module(
+    name = "rules_pyenv_example",
+    version = "0.0.0",
+    compatibility_level = 1,
+)
+
+bazel_dep(name = "rules_pyvenv", version = "0.0.0")
+bazel_dep(name = "rules_python", version = "0.26.0")
+
+local_path_override(
+    module_name = "rules_pyvenv",
+    path = "..",
+)
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "example_deps",
+    python_version = "3.11.6",
+    requirements_lock = "//:requirements.txt",
+)
+
+use_repo(pip, "example_deps")

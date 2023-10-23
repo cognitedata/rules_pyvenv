@@ -241,6 +241,12 @@ def run_additional_commands(env_path: pathlib.Path, commands: List[str]) -> None
     )
     ret.check_returncode()
 
+def add_repo_root_to_path(env_path: pathlib.Path):
+    repo_root_path = pathlib.Path(os.environ["BUILD_WORKSPACE_DIRECTORY"])
+    site_packages = find_site_packages(env_path)
+    with open(f"{site_packages}/repo-root.pth", "x") as path_file:
+        path_file.write("\\n".join([str(repo_root_path)]))
+
 
 def main():
     if "BUILD_ENV_INPUT" not in os.environ:
@@ -268,6 +274,7 @@ def main():
 
     install_files(env_path, files)
     generate_console_scripts(env_path)
+    add_repo_root_to_path(env_path)
 
     extra_commands = build_env_input.get("commands")
     if extra_commands:

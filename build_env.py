@@ -95,7 +95,7 @@ def is_external(file_: pathlib.Path) -> bool:
 
 
 def find_site_packages(env_path: pathlib.Path) -> pathlib.Path:
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         lib_path = env_path / "Lib"
 
         site_packages_path = lib_path / "site-packages"
@@ -143,17 +143,11 @@ def get_files(build_env_input: Dict) -> List[EnvFile]:
 
 
 def is_data_file(file: EnvFile) -> bool:
-    return (
-        file.type_ == EnvPathType.DATA
-        or file.env_path.parts[0].endswith(".data")
-    )
+    return file.type_ == EnvPathType.DATA or file.env_path.parts[0].endswith(".data")
 
 
 def install_data_file(env_path: pathlib.Path, file: EnvFile) -> None:
-    if (
-        len(file.env_path.parts) > 2
-        and file.env_path.parts[1] == "scripts"
-    ):
+    if len(file.env_path.parts) > 2 and file.env_path.parts[1] == "scripts":
         install_included_script(env_path, file.path)
     elif file.type_ == EnvPathType.DATA:
         install_site_file(env_path, file)
@@ -172,7 +166,13 @@ def install_files(env_path: pathlib.Path, files: List[EnvFile]) -> None:
         if is_data_file(file):
             install_data_file(env_path, file)
         else:
-            install_site_file(site_packages_path, file)
+            # In some cases we import external dependencies which depend on libraries that are published from the monorepo.
+            # We do not want those in the virtual environment, since they are already available in the source tree.
+            # We want to avoid module shadowing.
+            if "site-packages/cogmono" in str(file.path):
+                continue
+            else:
+                install_site_file(site_packages_path, file)
 
 
 # A copy of importlib_metadata:entry_points that takes a list of search paths.
@@ -188,7 +188,7 @@ def entry_points(path: List[str], **params) -> importlib_metadata.EntryPoints:
 
 def generate_console_scripts(env_path: pathlib.Path) -> None:
     site_packages = find_site_packages(env_path)
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         bin_path = env_path / "Scripts"
     else:
         bin_path = env_path / "bin"
@@ -241,6 +241,7 @@ def run_additional_commands(env_path: pathlib.Path, commands: List[str]) -> None
     )
     ret.check_returncode()
 
+
 def add_repo_root_to_path(env_path: pathlib.Path):
     repo_root_path = pathlib.Path(os.environ["BUILD_WORKSPACE_DIRECTORY"])
     site_packages = find_site_packages(env_path)
@@ -264,7 +265,10 @@ def main():
     sys._base_executable = str(pathlib.Path(sys._base_executable).resolve())
 
     if "VENV_LOCATION" in os.environ:
-        env_path = pathlib.Path(os.environ["BUILD_WORKSPACE_DIRECTORY"]) / os.environ["VENV_LOCATION"]
+        env_path = (
+            pathlib.Path(os.environ["BUILD_WORKSPACE_DIRECTORY"])
+            / os.environ["VENV_LOCATION"]
+        )
     else:
         cwd = os.environ.get("BUILD_WORKING_DIRECTORY", os.getcwd())
         env_path = pathlib.Path(cwd) / pathlib.Path(sys.argv[1])
